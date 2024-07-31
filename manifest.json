@@ -1,12 +1,18 @@
 {
   "manifest_version": 3,
-  "name": "OpenAI Poetic Assistant",
+  "name": "OpenAI Assistant",
   "version": "1.0",
-  "description": "An Edge extension that sends a request to the OpenAI API and retrieves a poetic explanation.",
+  "description": "A Chrome extension to respond to chat messages using OpenAI API",
   "permissions": ["storage", "activeTab", "scripting"],
   "background": {
     "service_worker": "background.js"
   },
+  "content_scripts": [
+    {
+      "matches": ["https://my.binotel.ua/f/chat-op/*"],
+      "js": ["content.js"]
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

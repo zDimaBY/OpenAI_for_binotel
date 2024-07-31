@@ -1,18 +1,20 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-  <title>Poetic Assistant</title>
-  <link rel="stylesheet" type="text/css" href="popup.css">
+  <title>OpenAI Assistant</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
-  <h1>Get a Poetic Explanation</h1>
-
-  <label for="question">Question:</label>
-  <textarea id="question" rows="3" placeholder="Compose a poem that explains the concept of recursion in programming."></textarea>
-  
-  <button id="getPoemButton">To ask</button>
-  <div id="result"></div>
-
+  <div class="container">
+    <h1>OpenAI Assistant</h1>
+    <label for="apiKey">OpenAI API Key</label>
+    <input type="text" id="apiKey" placeholder="Enter your OpenAI API Key">
+    <button id="saveBtn">Save</button>
+    <p id="status"></p>
+  </div>
   <script src="popup.js"></script>
 </body>
+
 </html>
