@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OpenAI Assistant",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "A Chrome extension to respond to chat messages using OpenAI API",
   "permissions": ["storage", "activeTab", "scripting"],
   "background": {

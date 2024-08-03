@@ -5,24 +5,21 @@ let maxResponses = 5;
 
 // Load settings and responses from storage
 chrome.storage.sync.get(['messageCount'], (data) => {
-  if (data.messageCount) {
-    maxResponses = data.messageCount;
-  }
+  maxResponses = data.messageCount || maxResponses;
 });
 
 chrome.storage.local.get(['responses', 'currentResponseIndex'], (data) => {
-  if (data.responses) {
-    responses = data.responses;
-    currentResponseIndex = data.currentResponseIndex || 0;
-    ensureCarousel(); // Ensure carousel is present when loading
-    updateCarousel();
-  }
+  responses = data.responses || [];
+  currentResponseIndex = data.currentResponseIndex || 0;
+  ensureCarousel();
+  updateCarousel();
 });
 
 function checkForNewMessages() {
-  try {
-    ensureCarousel(); // Ensure carousel is present before checking for new messages
+  if (!window.location.href.includes('/my-chats/')) return;
 
+  try {
+    ensureCarousel();
     const messages = document.querySelectorAll(".message-content.incoming .message.incoming span.ng-star-inserted");
     if (messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
@@ -30,10 +27,6 @@ function checkForNewMessages() {
       const messageId = messageElement.getAttribute("id");
       const messageText = lastMessage.textContent.trim();
 
-      //console.log("Current message ID:", messageId);
-      //console.log("Last recorded message ID:", lastMessageId);
-
-      // Skip processing if the message ID is "visitorDraftMessageId"
       if (messageId === "visitorDraftMessageId") {
         console.log("Ignoring draft message.");
         return;
@@ -42,7 +35,6 @@ function checkForNewMessages() {
       if (messageId !== lastMessageId) {
         console.log("New message detected:", messageText);
         lastMessageId = messageId;
-
         chrome.runtime.sendMessage({ message: "newMessage", text: messageText }, (response) => {
           if (response.error) {
             console.error("OpenAI error:", response.error);
@@ -50,8 +42,6 @@ function checkForNewMessages() {
             handleNewResponse(response.response);
           }
         });
-      } else {
-        //console.log("No new message detected.");
       }
     }
   } catch (error) {
@@ -60,33 +50,24 @@ function checkForNewMessages() {
 }
 
 function handleNewResponse(response) {
-  // Add new response to the responses array
   responses.push(response);
   if (responses.length > maxResponses) {
-    responses.shift(); // Ensure only the last maxResponses are stored
+    responses.shift();
   }
   currentResponseIndex = responses.length - 1;
   updateCarousel();
 
-  // Save responses and index to storage
-  chrome.storage.local.set({
-    responses: responses,
-    currentResponseIndex: currentResponseIndex
-  });
+  chrome.storage.local.set({ responses, currentResponseIndex });
 }
 
 function updateCarousel() {
   let carousel = document.querySelector('.openai-response-container');
-  
-  // Ensure carousel container is present
   if (!carousel) {
-    console.log("Carousel container not found, creating new one.");
     ensureCarousel();
     carousel = document.querySelector('.openai-response-container');
   }
 
-  // Clear previous response and append new one
-  carousel.querySelector('.openai-response')?.remove(); // Remove existing response
+  carousel.querySelector('.openai-response')?.remove();
 
   const responseDiv = document.createElement("div");
   responseDiv.className = "openai-response";
@@ -95,69 +76,51 @@ function updateCarousel() {
   carousel.appendChild(responseDiv);
 }
 
-function displayResponse(response) {
-  handleNewResponse(response);
-}
-
 function navigateCarousel(direction) {
   currentResponseIndex = (currentResponseIndex + direction + responses.length) % responses.length;
   updateCarousel();
-
-  // Save current response index to storage
-  chrome.storage.local.set({
-    currentResponseIndex: currentResponseIndex
-  });
+  chrome.storage.local.set({ currentResponseIndex });
 }
 
 function ensureCarousel() {
   let carousel = document.querySelector('.openai-response-container');
-  
-  // If carousel does not exist, create and insert it
   if (!carousel) {
-    console.log("Creating carousel container.");
     carousel = document.createElement("div");
     carousel.className = "openai-response-container";
 
     const buttonContainer = document.createElement("div");
     buttonContainer.className = "button-container";
 
-    const leftArrow = document.createElement("button");
-    leftArrow.className = "carousel-arrow left-arrow";
-    leftArrow.textContent = "←";
-    leftArrow.addEventListener("click", () => navigateCarousel(-1));
+    const buttons = [
+      { class: "carousel-arrow left-arrow", text: "←", handler: () => navigateCarousel(-1) },
+      { class: "carousel-arrow right-arrow", text: "→", handler: () => navigateCarousel(1) },
+      { class: "copy-button", text: "Copy", handler: copyResponseText },
+      { class: "regenerate-button", text: "Regenerate", handler: regenerateResponse }
+    ];
 
-    const rightArrow = document.createElement("button");
-    rightArrow.className = "carousel-arrow right-arrow";
-    rightArrow.textContent = "→";
-    rightArrow.addEventListener("click", () => navigateCarousel(1));
-
-    // Add copy button
-    const copyButton = document.createElement("button");
-    copyButton.className = "copy-button";
-    copyButton.textContent = "Copy";
-    copyButton.addEventListener("click", copyResponseText);
-
-    // Add regenerate button
-    const regenerateButton = document.createElement("button");
-    regenerateButton.className = "regenerate-button";
-    regenerateButton.textContent = "Regenerate";
-    regenerateButton.addEventListener("click", regenerateResponse);
-
-    buttonContainer.appendChild(leftArrow);
-    buttonContainer.appendChild(rightArrow);
-    buttonContainer.appendChild(copyButton);
-    buttonContainer.appendChild(regenerateButton);
+    buttons.forEach(({ class: className, text, handler }) => {
+      const button = document.createElement("button");
+      button.className = className;
+      button.textContent = text;
+      button.addEventListener("click", handler);
+      buttonContainer.appendChild(button);
+    });
 
     carousel.appendChild(buttonContainer);
+    
+    // Create and append the initial response container
+    const initialResponseDiv = document.createElement("div");
+    initialResponseDiv.className = "openai-response";
+    initialResponseDiv.textContent = responses[currentResponseIndex];
 
+    carousel.appendChild(initialResponseDiv);
+    
     insertResponseContainer(carousel);
   }
 }
 
 function insertResponseContainer(responseContainer) {
-  // Try to insert container in multiple possible places
   const chatEditor = document.querySelector('op-send-message-zone');
-  
   if (chatEditor) {
     chatEditor.parentNode.insertBefore(responseContainer, chatEditor);
   } else {
@@ -168,12 +131,9 @@ function insertResponseContainer(responseContainer) {
 function copyResponseText() {
   const responseDiv = document.querySelector('.openai-response');
   if (responseDiv) {
-    const text = responseDiv.textContent;
-    navigator.clipboard.writeText(text).then(() => {
-      console.log("Text copied to clipboard.");
-    }).catch(err => {
-      console.error("Failed to copy text:", err);
-    });
+    navigator.clipboard.writeText(responseDiv.textContent)
+      .then(() => console.log("Text copied to clipboard."))
+      .catch(err => console.error("Failed to copy text:", err));
   } else {
     console.log("No response text available to copy.");
   }
@@ -195,5 +155,53 @@ function regenerateResponse() {
   }
 }
 
-// Set interval to check for new messages and ensure carousel
+function injectStyles() {
+  const style = document.createElement('style');
+  style.textContent = `
+    .button-container {
+  
+  }
+  
+  .button-container .carousel-arrow,
+  .button-container .copy-button,
+  .button-container .regenerate-button {
+    margin: 0 1px; /* Horizontal margin between buttons */
+  }
+  
+  .carousel-arrow {
+    background-color: #444;
+    border: none;
+    color: #fff;
+    padding: 3px 7px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+    
+  .carousel-arrow, .copy-button, .regenerate-button {
+    background-color: #444;
+    color: #fff;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .carousel-arrow:hover, .copy-button:hover, .regenerate-button:hover {
+    background-color: #555;
+  }
+  
+  .openai-response {
+    color: #212529;
+    padding: 5px;
+    background-color: #f1f1f1;
+    border-radius: 4px;
+    width: 100%;
+    text-align: left;
+  }
+  `;
+  document.head.appendChild(style);
+}
+
+injectStyles();
+
 setInterval(checkForNewMessages, 2000);
