@@ -5,11 +5,12 @@ let isProcessing = false;
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.message === "newMessage") {
-    chrome.storage.sync.get('openaiApiKey', (data) => {
+    chrome.storage.sync.get(['openaiApiKey', 'model'], (data) => {
       const apiKey = data.openaiApiKey;
+      const model = data.model || "gpt-4o-mini"; // Модель за замовчуванням, якщо не вказано
       if (apiKey) {
         fetchPromptAndStyle().then(() => {
-          fetchResponseFromOpenAI(apiKey, request.text, sendResponse);
+          fetchResponseFromOpenAI(apiKey, model, request.text, sendResponse);
         });
       } else {
         sendResponse({ error: "API key is not set." });
@@ -26,7 +27,7 @@ function fetchPromptAndStyle() {
   ]);
 }
 
-function fetchResponseFromOpenAI(apiKey, text, sendResponse, requestId) {
+function fetchResponseFromOpenAI(apiKey, model, text, sendResponse, requestId) {
   if (isProcessing) return;  // Prevent multiple requests
   isProcessing = true;
   lastRequestId = requestId;
@@ -38,7 +39,7 @@ function fetchResponseFromOpenAI(apiKey, text, sendResponse, requestId) {
       "Authorization": `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: "gpt-4",
+      model: model,
       messages: [
         { role: "system", content: prompt },
         { role: "system", content: style },

@@ -9,8 +9,22 @@
 <body>
   <div class="container">
     <h1>OpenAI Assistant</h1>
+    
     <label for="apiKey">OpenAI API Key</label>
     <input type="text" id="apiKey" placeholder="Enter your OpenAI API Key">
+    
+    <label for="model">Select Model</label>
+    <select id="model">
+      <option value="gpt-4o-mini" selected>GPT-4O-Mini</option>
+      <option value="gpt-4o">GPT-4O</option>
+      <option value="gpt-4">GPT-4</option>
+      <!-- Add more options here if needed -->
+    </select>
+    
+    <br><br>
+    <label for="messageCount">Number of Recent Messages to Display</label>
+    <input type="number" id="messageCount" min="1" max="10" placeholder="Enter a number (1-10)">
+    
     <button id="saveBtn">Save</button>
     <p id="status"></p>
   </div>
